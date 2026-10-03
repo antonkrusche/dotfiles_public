@@ -1,0 +1,6 @@
+[sections]
+git = "96"      # Bright Cyan
+docs = "93"     # Bright Yellow
+workflow = "92" # Bright Green
+# Format: section_name = "ANSI_color_code"
+# Brights: 91: Red, 92: Green, 93: Yellow, 94: Blue, 95: Magenta, 96: Cyan

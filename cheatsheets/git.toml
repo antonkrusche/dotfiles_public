@@ -1,0 +1,29 @@
+[providers]
+# Format: "list_command | extract_command"
+# Use 'cat' as extract_command if you want the whole line
+branch = "git branch -a --format='%(refname:short)' | cat"
+commit = "pretty_git_log -n 200 | grep -oE '[a-f0-9]{7,40}' | head -n1"
+rebase_branch = "git branch --format='%(refname:short)' | cat"
+remote_branch = "git branch -r --format='%(refname:short)' | sed 's/^origin\\///' | cat"
+
+[git]
+checkout = { cmd = "git checkout {{branch}}", keywords = ["switch", "branch", "move"] }
+log = { cmd = "pretty_git_log {{branch}}", keywords = ["history", "commits"] }
+log_number = { cmd = "pretty_git_log {{branch}} -n ", keywords = ["history", "limit"] }
+diff = { cmd = "git diff {{commit}} {{commit}}", keywords = ["compare", "changes"] }
+show = { cmd = "git show {{commit}}", keywords = ["inspect", "commit", "details", "changes"]}
+"git status (pretty)" = { cmd = "pretty_git_status", keywords = ["status", "git", "state"] }
+"git explorer (fuzzy)" = { cmd = "git-fuzzy-branch-list", keywords = ["branch", "explorer", "fuzzy", "git"] }
+"git log (fuzzy)" = { cmd = "git-fuzzy-log", keywords = ["log", "history", "fuzzy", "git"] }
+"git log (pretty)" = { cmd = "pretty_git_log", keywords = ["log", "pretty", "git"] }
+"git diff workingtree (fuzzy)" = { cmd = "git-fuzzy-diff", keywords = ["diff", "compare", "fuzzy", "git"] }
+"git diff compare (fuzzy)" = { cmd = "git-fuzzy-diff {{commit}} {{commit}}", keywords = ["diff", "compare", "fuzzy", "git"] }
+"git checkout (fuzzy)" = { cmd = "git_fuzzy_checkout_branch", keywords = ["checkout", "switch", "fuzzy", "git"] }
+
+[rebase]
+"rebase onto local branch" = { cmd = "git rebase -i {{rebase_branch}}", keywords = ["interactive", "squash", "edit", "fixup"] }
+"rebase after fetch" = { cmd = "git fetch origin {{remote_branch}} && git rebase origin/{{remote_branch}}", keywords = ["update", "sync", "remote", "upstream"] }
+"pull with interactive rebase" = { cmd = "git pull --rebase=interactive", keywords = ["update", "pull", "sync"] }
+"continue" = { cmd = "git rebase --continue", keywords = ["next", "resolved", "finish"] }
+"abort" = { cmd = "git rebase --abort", keywords = ["stop", "cancel", "undo"] }
+"skip" = { cmd = "git rebase --skip", keywords = ["ignore", "skip"] }

@@ -1,0 +1,3 @@
+[files]
+# File Search
+"search files (rg + fzf)" = { cmd = "fuzzygrep", keywords = ["search", "find", "grep", "files"] }
