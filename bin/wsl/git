@@ -1,0 +1,131 @@
+#!/bin/sh
+# git shim: use Windows git (git.exe) when the work tree is on a drive mounted
+# under /mnt/<letter>.
+#
+# Linux git has to stat every file across the WSL virtual machine boundary, so
+# `git status` on a large repository takes minutes there, while git.exe works
+# on NTFS natively. Being a real executable on PATH (not a fish function) means
+# starship, neovim plugins, lazygit and plain scripts resolve the same git - a
+# fish function is invisible to child processes (this is exactly what broke
+# pretty_git_status on the Windows-drive setup).
+#
+# The two gits disagree on absolute path formats, so this shim normalizes both
+# directions in one place:
+#  * git.exe understands Windows paths only. Every argument carrying a
+#    work-tree path (-C <dir>, --git-dir[=<dir>], --work-tree[=<dir>], any
+#    number of them) is translated with wslpath; all other arguments pass
+#    through untouched.
+#  * Linux-side consumers of git's output (neovim plugins, VS Code, the fish
+#    pickers) expect /mnt/... paths, which only Linux git emits. `rev-parse`
+#    is therefore delegated to Linux git: it just reads .git - it never walks
+#    the work tree and never writes the index, so it is fast here and cannot
+#    cause index-stat churn between the two gits.
+#
+# Keep everything else (status/diff/log/add/commit/...) on one git per work
+# tree: mixing content operations between the gits makes them disagree about
+# stat metadata, i.e. each rewrite of .git/index invalidates the other.
+#
+# Environment variable WSL_FAKE_CWD lets the shims be tested on a plain Linux
+# machine with a fake `wslpath` first on PATH; never set it normally.
+set -eu
+
+# Determine this script's directory. When found via PATH, $0 already holds the
+# resolved path; when invoked by a name with no slash, resolve it first.
+self=$0
+case $self in
+    */*) ;;
+    *) self=$(command -v -- "$self") || exit 127 ;;
+esac
+shimdir=$(dirname -- "$(readlink -f -- "$self")")
+
+# Real Linux git, found on a PATH without the shim directory (so the lookup
+# can never recurse into itself).
+real_git_path() {
+    PATH=$(printf '%s\n' "$PATH" | tr ':' '\n' | awk -v d="$shimdir" '$0 != d' | paste -sd ':')
+    if [ -z "$PATH" ]; then return 1; fi
+    command -v -- git
+}
+
+run_real_git() {
+    gitbin=$(real_git_path) || {
+        echo "wsl-bin/git: no git found on PATH" >&2
+        exit 127
+    }
+    exec "$gitbin" "$@"
+}
+
+# Convert a Linux-style path to its Windows form; unchanged when the argument
+# is not such a path, or when wslpath is missing (git.exe then reports the
+# error itself).
+to_win() {
+    case $1 in
+        /mnt/[A-Za-z]|/mnt/[A-Za-z]/*)
+            wslpath -w "$1" 2>/dev/null || printf '%s\n' "$1"
+            ;;
+        *) printf '%s\n' "$1" ;;
+    esac
+}
+
+cwd=${WSL_FAKE_CWD:-$(pwd -P)}
+
+# Which work tree does this invocation refer to: the process cwd, or a path
+# passed by the caller?
+target=$cwd
+case ${1:-} in
+    -C)
+        if [ $# -ge 2 ]; then target=$2; fi
+        ;;
+    --git-dir=*|--work-tree=*)
+        target=${1#*=}
+        ;;
+esac
+
+case $target in
+    /mnt/[A-Za-z]|/mnt/[A-Za-z]/*)
+        # Work tree is on a Windows drive. Without git.exe the slow Linux git
+        # is the only option.
+        if ! command -v -- git.exe >/dev/null 2>&1; then
+            run_real_git "$@"
+        fi
+
+        if [ "${1:-}" = rev-parse ]; then
+            # Try Linux git first (correct path format for Linux consumers).
+            if gitbin=$(real_git_path) && "$gitbin" "$@" 2>/dev/null; then
+                exit
+            fi
+            # Work trees created by Windows git embed a Windows path in .git,
+            # which Linux git cannot read; fall back to git.exe.
+            exec git.exe "$@"
+        fi
+
+        # Translate every work-tree path argument, in place. Arguments are
+        # rotated to the front one at a time, rewritten if needed, and pushed
+        # back on the end, so no eval or array is required and the original
+        # order and quoting survive unchanged.
+        n=$#
+        i=1
+        pending=0
+        while [ $i -le $n ]; do
+            head=$1
+            shift
+            pending_next=0
+            if [ $pending -eq 1 ]; then
+                head=$(to_win "$head")
+            else
+                case $head in
+                    -C|--git-dir|--work-tree) pending_next=1 ;;
+                    --git-dir=*|--work-tree=*)
+                        key=${head%%=*}
+                        head="$key=$(to_win "${head#*=}")"
+                        ;;
+                esac
+            fi
+            pending=$pending_next
+            set -- "$@" "$head"
+            i=$((i + 1))
+        done
+        exec git.exe "$@"
+        ;;
+esac
+
+run_real_git "$@"

@@ -1,0 +1,51 @@
+#!/bin/sh
+# Generic WSL-interop shim.
+#
+# Symlink the tool names that should switch to their Windows build into this
+# directory (e.g. `ln -s wsl-exec rg`). When the relevant working directory is
+# on a Windows drive mounted under /mnt/<letter>, the tool's Windows .exe is
+# used instead of the Linux binary: it accesses NTFS natively instead of
+# crossing the WSL virtual machine boundary, which is orders of magnitude
+# faster for file-system heavy tools.
+#
+# These are real executables, not fish functions, on purpose: fish functions
+# only exist inside the fish process, so callers such as starship, neovim
+# plugins, lazygit and plain shell scripts silently bypassed the old wrappers.
+# A directory on PATH is inherited by every child process, so one decision
+# point covers the whole toolchain.
+#
+# Only swap *stateless, I/O-heavy* tools here. Keep tools that hold their own
+# state or that are UI glue on the Linux side:
+#   zoxide - the Windows build keeps a separate z-database, fragmenting ours
+#   fzf    - it launches previews/commands itself, and those must stay in the
+#            Linux (fish) world
+#   eza    - listing one directory is not the bottleneck
+#
+# Environment variable WSL_FAKE_CWD lets the shims be exercised on a plain
+# Linux machine with a fake <tool>.exe and `wslpath` first on PATH; never set
+# it normally.
+set -eu
+
+# Determine this script's directory. When found via PATH, $0 already holds the
+# resolved path; when invoked by a name with no slash, resolve it first.
+self=$0
+case $self in
+    */*) ;;
+    *) self=$(command -v -- "$self") || exit 127 ;;
+esac
+shimdir=$(dirname -- "$(readlink -f -- "$self")")
+tool=$(basename -- "$0")
+
+cwd=${WSL_FAKE_CWD:-$(pwd -P)}
+case $cwd in
+    /mnt/[A-Za-z]|/mnt/[A-Za-z]/*)
+        if command -v -- "$tool.exe" >/dev/null 2>&1; then
+            exec "$tool.exe" "$@"
+        fi
+        ;;
+esac
+
+# Fall through to the genuine Linux binary, found on a PATH without this shim
+# directory so the lookup can never recurse into itself.
+PATH=$(printf '%s\n' "$PATH" | tr ':' '\n' | awk -v d="$shimdir" '$0 != d' | paste -sd ':')
+exec "$tool" "$@"

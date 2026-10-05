@@ -5,18 +5,44 @@ Renders `git status --porcelain -b` (machine format, colors re-applied by us)
 with a right-hand column of exact added/deleted line counts from
 `git diff --numstat HEAD`. Paths are middle-elided, keeping the filename and
 as many directory components as fit. Untracked files get no count column.
+
+With `--pairs`, each changed file is emitted as `display<TAB>path` instead
+(header/summary rows are dropped, renames reduce to their destination path)
+so callers — e.g. fzf pickers — can use the display line to pick and the
+hidden path to act. Exactly one row per porcelain record keeps both intact.
+
+$PRETTY_GIT selects the git binary (default: git). PATH normally resolves it
+through the wsl-bin shims, which switch to git.exe on Windows-mounted drives
+(see fish_scripts/wsl_alias.fish); the variable is meant for debugging/forcing
+a specific binary.
 """
+import os
 import re
 import shutil
 import subprocess
+import sys
 
 def c(code, s):
     return f"\x1b[{code}m{s}\x1b[0m"
 
-def git(*args):
-    r = subprocess.run(["git", "-c", "core.quotePath=false", *args],
-                       capture_output=True, text=True, errors="replace")
-    return r.stdout if r.returncode == 0 else None
+def git(*args, report_errors=False):
+    # Honor $PRETTY_GIT so we use the same binary as the shell wrapper (which
+    # prefers git.exe on Windows-mounted drives); fall back to plain git.
+    exe = os.environ.get("PRETTY_GIT") or "git"
+    try:
+        r = subprocess.run([exe, "-c", "core.quotePath=false", *args],
+                           capture_output=True, text=True, errors="replace")
+    except FileNotFoundError:
+        if report_errors:
+            sys.stderr.write(f"pretty_git_status: '{exe}' not found\n")
+        return None
+    if r.returncode != 0:
+        # report_errors is off for the diff-HEAD calls, whose failure is
+        # expected in a repository without any commit yet.
+        if report_errors and r.stderr:
+            sys.stderr.write(r.stderr)
+        return None
+    return r.stdout
 
 def numstat():
     """path-after-rename -> (adds, dels); '-' means binary."""
@@ -90,8 +116,9 @@ def count_column(add, dele, add_w, del_w):
     return " " * (add_w - len(add) - 1) + c(32, f"+{add}") + " " + " " * pad_del + tok_del
 
 def main():
+    pairs_mode = "--pairs" in sys.argv[1:]
     cols = shutil.get_terminal_size().columns          # COLUMNS env, ioctl, else 80
-    status = git("status", "--porcelain", "-b")
+    status = git("status", "--porcelain", "-b", report_errors=True)
     stats = numstat()
     if status is None:
         return 1                                       # not a git repository
@@ -118,7 +145,8 @@ def main():
 
     for xy, path, add, dele in rows:
         if xy is None:
-            print(f"## {c(32, path)}")
+            if not pairs_mode:              # "## branch" row: header only
+                print(f"## {c(32, path)}")
             continue
         budget = max(1, (left_width if add else cols) - 3)
         shown = shorten(path, budget)
@@ -126,12 +154,16 @@ def main():
         if add:
             vis = len(xy) + 1 + len(shown)
             pad = max(0, left_width - vis)
-            print(f"{left}{' ' * pad} | {count_column(add, dele, add_w, del_w)}")
+            line = f"{left}{' ' * pad} | {count_column(add, dele, add_w, del_w)}"
         else:
-            print(left)
+            line = left
+        if pairs_mode:
+            print(line, path.split(" -> ")[-1], sep="\t")
+        else:
+            print(line)
 
     summary = (git("diff", "--shortstat", "HEAD") or "").strip()
-    if summary:
+    if summary and not pairs_mode:
         print(f"\x1b[2m{summary}\x1b[22m")
     return 0
 

@@ -123,6 +123,11 @@ style = "bg:color_bg1"
 format = '[[ $symbol $branch ](fg:color_blue bg:color_bg1)]($style)'
 
 [git_status]
+# On WSL with the work tree on a Windows drive (/mnt/...), gitoxide's own file
+# access is as slow as the Linux git binary's, since both have to stat every
+# file across the WSL VM boundary. Shelling out to `git` instead lets the
+# wsl-bin git shim route this to git.exe (see fish_scripts/wsl_alias.fish).
+use_git_executable = true
 style = "bg:color_bg1"
 format = '[[($all_status$ahead_behind )](fg:color_orange bg:color_bg1)]($style)'
 
@@ -144,7 +149,7 @@ format = '[[ $symbol ](fg:color_fg1 bg:color_bg_statusline3)]($style)'
 [c]
 symbol = " "
 style = "bg:color_bg_statusline3"
-detect_extensions=['c','h','cpp','hpp']
+detect_extensions = ['c', 'h', 'cpp', 'hpp']
 format = '[[ $symbol ](fg:color_fg1 bg:color_bg_statusline3)]($style)'
 
 [cmake]

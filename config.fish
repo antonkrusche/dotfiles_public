@@ -58,6 +58,7 @@ if status is-interactive
     abbr gst pretty_git_status
     abbr gl pretty_git_log
     abbr gfb --function git_fuzzy_branch --position anywhere
+    abbr gff --function git_fuzzy_file --position anywhere
 
     # Open the fuzzy cheatsheet with Ctrl+a (insert and vi normal mode)
     bind --mode insert \ca fuzzy-cheat-sheet

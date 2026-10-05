@@ -1,69 +1,34 @@
-# WSL interop helpers.
+#!/usr/bin/env fish
 #
-# When the current directory lives on a Windows drive mounted under
-# /mnt/<letter> (C:, D:, ...), prefer the Windows .exe: it accesses the
-# filesystem natively instead of through WSL's slow drvfs/9p layer.
-# Everywhere else, use the normal Linux binary.
+# WSL interop: prefer the Windows build of file-system heavy tools whenever the
+# work tree lives on a Windows drive (/mnt/<letter>).
 #
-# If the Windows tool is not installed, warn once per session and fall back
-# to the Linux binary, so it is obvious which tools still need installing on
-# the Windows side.
+# Why EXECUTABLE SHIMS ON PATH instead of fish functions:
+# fish functions only exist inside the fish process. starship, neovim plugins,
+# lazygit, python helpers and plain shell scripts all exec `git`/`rg`/... on
+# their own and silently bypassed the old function wrappers - that is what made
+# pretty_git_status print nothing on Windows-mounted repositories (python ran
+# the Linux git, which failed with a swallowed "dubious ownership" error), and
+# it is why a git-driven prompt in a 100k LOC repository on /mnt could take
+# minutes. A directory prepended to PATH (with `fish_add_path`) is inherited by
+# every child process, so one decision point covers the whole toolchain.
 #
-# Caveat: WSL translates the working directory but not command arguments, so
-# the .exe works with relative paths only -- pass absolute paths to the Linux
-# binary instead.
+# The shims live in <repo>/bin/wsl:
+#   wsl-exec   generic dispatcher, symlinked by the simple tools (rg, fd,
+#              lazygit): runs `<tool>.exe` on /mnt/<letter>, the Linux binary
+#              everywhere else
+#   git        dedicated shim: routes expensive work-tree scans to git.exe and
+#              path-emitting queries (rev-parse) to Linux git, translates
+#              -C/--git-dir/--work-tree arguments, see its header
+#
+# Tool policy (keep the Linux build!): fzf (it launches the previews/commands,
+# which must stay in the Linux/fish world), zoxide (the Windows build keeps a
+# separate database), eza (listing one directory is not the bottleneck),
+# nvim (its git plugins consume /mnt/... paths, which the git shim provides).
+#
+# Only this file is sourced from config.fish, and only on WSL.
 
-function __wsl_on_windows_drive
-    string match -q -r '^/mnt/[a-zA-Z](/|$)' -- (pwd -P)
-end
-
-function __wsl_exec --argument-names cmd
-    set -l args $argv[2..-1]
-
-    if __wsl_on_windows_drive
-        if command -sq "$cmd.exe"
-            command "$cmd.exe" $args
-            return
-        end
-
-        # Warn once per session for each missing Windows tool.
-        if not contains -- $cmd $__wsl_missing_exe
-            set -ga __wsl_missing_exe $cmd
-            echo "wsl_alias: '$cmd.exe' not found on Windows; using Linux '$cmd' instead." >&2
-        end
-    end
-
-    command $cmd $args
-end
-
-function git --wraps git
-    __wsl_exec git $argv
-end
-
-function fzf --wraps fzf
-    __wsl_exec fzf $argv
-end
-
-function nvim --wraps nvim
-    __wsl_exec nvim $argv
-end
-
-function lazygit --wraps lazygit
-    __wsl_exec lazygit $argv
-end
-
-function rg --wraps rg
-    __wsl_exec rg $argv
-end
-
-function fd --wraps fd
-    __wsl_exec fd $argv
-end
-
-function zoxide --wraps zoxide
-    __wsl_exec zoxide $argv
-end
-
-function eza --wraps eza
-    __wsl_exec eza $argv
-end
+# --prepend is the default; --move makes an already-present entry land in
+# front again after edits; --path keeps it in PATH only for the current
+# session (no universal variable), so it never outlives this config.
+fish_add_path --global --path --move "$dotfiles_dir/bin/wsl"
