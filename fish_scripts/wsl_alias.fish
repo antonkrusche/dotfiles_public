@@ -20,11 +20,18 @@
 #   git        dedicated shim: routes expensive work-tree scans to git.exe and
 #              path-emitting queries (rev-parse) to Linux git, translates
 #              -C/--git-dir/--work-tree arguments, see its header
+#   nvim       dedicated shim: launches nvim.exe on /mnt/<letter> (translating
+#              /mnt/... file arguments) so the C# language servers run on the
+#              side the Windows project was built for, see its header
 #
 # Tool policy (keep the Linux build!): fzf (it launches the previews/commands,
 # which must stay in the Linux/fish world), zoxide (the Windows build keeps a
-# separate database), eza (listing one directory is not the bottleneck),
-# nvim (its git plugins consume /mnt/... paths, which the git shim provides).
+# separate database), eza (listing one directory is not the bottleneck).
+#
+# nvim is *not* in that list: file I/O speed is irrelevant, but a language
+# server is not stateless I/O glue. Linux Roslyn cannot resolve a Windows-built
+# project (C:\ HintPaths, Windows SDKs, Windows NuGet/MSBuild), so on /mnt the
+# editor itself runs on Windows. See docs/wsl-interop.txt.
 #
 # Only this file is sourced from config.fish, and only on WSL.
 

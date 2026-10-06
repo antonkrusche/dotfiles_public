@@ -1,0 +1,119 @@
+#!/bin/sh
+# nvim shim: run the Windows build (nvim.exe) when the session is rooted on a
+# Windows drive (mnt/<letter>).
+#
+# Why nvim is different from the other shims
+# ------------------------------------------
+# For rg/fd/git the swap is about I/O speed. For nvim it is about *correctness*
+# of the language servers. The C# work tree lives on NTFS because Visual Studio
+# and the Windows .NET SDK need it, and its .csproj files are a Windows project:
+# HintPath entries point at C:\..., assemblies target Windows-only frameworks and
+# Windows SDKs, and MSBuild/NuGet caches are Windows-side. Linux Roslyn running
+# against /mnt/... reports "has unresolved dependencies" and only ever gives
+# partial IntelliSense. Running the editor as a Windows process puts the whole
+# toolchain (Roslyn, MSBuild, dotnet, NuGet, netcoredbg) back on the side the
+# project was built for.
+#
+# This is deliberately a launcher, not a live swap: the editor flavour has to be
+# chosen before Neovim starts. The decision point is the same as everywhere else
+# in bin/wsl - this directory sits first on PATH, so `nvim` from fish, `$EDITOR`,
+# lazygit, scripts or Neovim's own :! all resolve here.
+#
+# WSL runs Windows executables but does NOT translate their arguments ("we don't
+# do any manipulation of the command line"), so every /mnt/... argument is turned
+# into C:\... with wslpath first. The working directory *is* translated by WSL,
+# so when a /mnt file is opened from a Linux cwd we cd into its directory first,
+# otherwise nvim.exe would start in C:\WINDOWS\system32.
+#
+# Caveats:
+#  * the terminal must be able to host a Windows console program (Windows
+#    Terminal, WezTerm, ...). A purely Linux terminal emulator cannot.
+#  * nvim.exe is a Windows process: it uses the Windows config, the Windows PATH
+#    and Mason installs the language servers for the Windows side. Point it at
+#    the same config repo (see docs/wsl-interop.txt), but expect two Mason trees.
+#  * set WSL_NVIM_IMPL=linux to force the Linux build (also handy for testing).
+#  * set WSL_FAKE_CWD to exercise the shim on a plain Linux box with a fake
+#    nvim.exe and wslpath first on PATH; never set it normally.
+set -eu
+
+# Determine this script's directory. When found via PATH, $0 already holds the
+# resolved path; when invoked by a name with no slash, resolve it first.
+self=$0
+case $self in
+    */*) ;;
+    *) self=$(command -v -- "$self") || exit 127 ;;
+esac
+shimdir=$(dirname -- "$(readlink -f -- "$self")")
+
+real_nvim() {
+    # The genuine Linux nvim, found on a PATH without this shim directory so the
+    # lookup can never recurse into itself.
+    real_path=$(printf '%s\n' "$PATH" | tr ':' '\n' | awk -v d="$shimdir" '$0 != d' | paste -sd ':')
+    PATH=$real_path
+    exec nvim "$@"
+}
+
+if [ "${WSL_NVIM_IMPL:-}" = linux ]; then
+    real_nvim "$@"
+fi
+
+cwd=${WSL_FAKE_CWD:-$(pwd -P)}
+
+# Pick the work tree this invocation belongs to: the process cwd, or, if the cwd
+# is not on a Windows drive, the first /mnt/... argument (opening a Windows file
+# from a Linux directory is common: `nvim /mnt/c/repo/foo.cs`).
+target=$cwd
+case $cwd in
+    /mnt/[A-Za-z]|/mnt/[A-Za-z]/*) ;;
+    *)
+        for arg in "$@"; do
+            case $arg in
+                /mnt/[A-Za-z]|/mnt/[A-Za-z]/*)
+                    target=$arg
+                    break
+                    ;;
+            esac
+        done
+        ;;
+esac
+
+case $target in
+    /mnt/[A-Za-z]|/mnt/[A-Za-z]/*)
+        if command -v -- nvim.exe >/dev/null 2>&1; then
+            # If the cwd itself is not translatable, move into the target's
+            # directory so the Windows process inherits a usable cwd.
+            case $cwd in
+                /mnt/[A-Za-z]|/mnt/[A-Za-z]/*) ;;
+                *)
+                    if [ -d "$target" ]; then
+                        cd "$target" 2>/dev/null || true
+                    else
+                        cd "$(dirname -- "$target")" 2>/dev/null || true
+                    fi
+                    ;;
+            esac
+
+            # Translate /mnt/... arguments in place. Arguments are rotated to the
+            # front one at a time, rewritten if needed, and pushed back on the end
+            # so original order and quoting survive unchanged.
+            n=$#
+            i=1
+            while [ $i -le $n ]; do
+                head=$1
+                shift
+                case $head in
+                    /mnt/[A-Za-z]|/mnt/[A-Za-z]/*)
+                        if win=$(wslpath -w "$head" 2>/dev/null); then
+                            head=$win
+                        fi
+                        ;;
+                esac
+                set -- "$@" "$head"
+                i=$((i + 1))
+            done
+            exec nvim.exe "$@"
+        fi
+        ;;
+esac
+
+real_nvim "$@"
