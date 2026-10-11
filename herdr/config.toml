@@ -1,0 +1,33 @@
+onboarding = false
+
+[terminal]
+default_shell = "fish"
+
+[theme]
+name = "gruvbox"
+
+[worktrees]
+directory = "~/.herdr/worktrees"
+
+[keys]
+prefix = "alt+minus" # alt unused and no layer switch needed
+workspace_picker = "prefix+e" # similar to lazyvim neotree keymap
+edit_scrollback = "prefix+g" # similar to pi agent "open prompt in editor" keymap: ctrl+g
+goto = "prefix+f" # mnemonic "find", similar to <leader>ff in LazyVim to navigate a big repository
+new_tab = "prefix+tab" # similar to LazyVim: <leader><tab><tab> 
+next_tab = [
+  "prefix+l",
+  "alt+right",
+] # similar to my nvim tab keymap: <leader><tab>l, and alt+right allows fast cycling
+previous_tab = [
+  "prefix+h",
+  "alt+left",
+] # similar to my nvim tab keymap: <leader><tab>h, and alt+left allows fast cycling
+switch_tab = "alt+1..9" # alt+1..9 for fast cycling
+switch_workspace = "prefix+1..9"
+cycle_pane_next = "alt+down" # alt+down for fast cycling
+cycle_pane_previous = "alt+up" # alt+up for fast cycling
+split_vertical = [
+  "prefix+v",
+  "prefix+|",
+] # similar to LazyVim keymap <leader>| und <leader>wv
