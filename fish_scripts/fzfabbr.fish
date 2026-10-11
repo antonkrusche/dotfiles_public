@@ -27,12 +27,6 @@ function git_fuzzy_branch --description 'Pick a branch via fzf, print its name'
     echo $result
 end
 
-function git_fuzzy_checkout_branch --description 'Pick a branch via fzf, print "git checkout <name>"'
-    set -l PREVIEW_COMMAND "echo git checkout {1};echo;git log {1} --graph --color=always --format=\"%C(auto) %<(50,trunc)%s %C(green)%C(bold)%<(15,trunc)%cr% %C(blue)%<(15,trunc)%an %C(auto)%d %h\""
-    set -l result (_git_fuzzy_branch_input | fzf $GIT_FZF_DEFAULT_OPTS --preview "$PREVIEW_COMMAND" --preview-window=top:85% --bind 'enter:become(echo {1})')
-    echo git checkout (string escape -- $result)
-end
-
 function git_fuzzy_file --description 'Pick changed files via fzf (multi-select); print paths relative to the current directory'
     set -l root (git rev-parse --show-toplevel 2>/dev/null)
     if test -z "$root"

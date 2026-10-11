@@ -38,7 +38,14 @@ end
 function git-fuzzy-log
     set PREVIEW_COMMAND "git show --no-patch --color=always {-1};echo ;git show --stat --format="" --color=always {-1}"
     set ENTER_COMMAND "fish -ic \"git-fuzzy-diff {-1}^1 {-1}\""
-    git log $argv --graph --color=always --format="%C(auto) %<(50,trunc)%s %C(green)%C(bold)%<(15,trunc)%cr% %C(blue)%<(15,trunc)%an %C(auto)%d %h" | fzf $GIT_FZF_DEFAULT_OPTS --no-sort --tiebreak=index --preview "$PREVIEW_COMMAND" --preview-window=top:50% --bind "enter:execute:$ENTER_COMMAND"
+
+    set -l header 'enter: diff · ctrl-o: show surrounding commits'
+    git log $argv --graph --color=always --format="%C(auto) %<(50,trunc)%s %C(green)%C(bold)%<(15,trunc)%cr% %C(blue)%<(15,trunc)%an %C(auto)%d %h" \
+        | fzf $GIT_FZF_DEFAULT_OPTS --no-sort --tiebreak=index \
+        --header "$header" \
+        --preview "$PREVIEW_COMMAND" --preview-window=top:50% \
+        --bind "enter:execute:$ENTER_COMMAND" \
+        --bind 'ctrl-o:toggle-raw'
 end
 
 function git-fuzzy-branch-list

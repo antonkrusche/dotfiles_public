@@ -7,23 +7,147 @@ rebase_branch = "git branch --format='%(refname:short)' | cat"
 remote_branch = "git branch -r --format='%(refname:short)' | sed 's/^origin\\///' | cat"
 
 [git]
-checkout = { cmd = "git checkout {{branch}}", keywords = ["switch", "branch", "move"] }
+"git status" = { cmd = "git status", abbr = "gs", keywords = [
+  "status",
+  "state",
+  "changes",
+] }
+"git status (pretty)" = { cmd = "pretty_git_status", keywords = [
+  "status",
+  "git",
+  "state",
+] }
+clone = { cmd = "git clone", abbr = "gcl", keywords = [
+  "clone",
+  "download",
+  "remote",
+  "repository",
+] }
+checkout = { cmd = "git checkout {{branch}}", keywords = [
+  "switch",
+  "branch",
+  "move",
+] }
+"new branch" = { cmd = "git switch --create", abbr = "gsc", keywords = [
+  "create",
+  "branch",
+  "switch",
+  "new",
+] }
+"git add interactive" = { cmd = "git add --interactive", abbr = "gai", keywords = [
+  "add",
+  "stage",
+  "interactive",
+] }
+"git add all" = { cmd = "git add --all", abbr = "gaa", keywords = [
+  "add",
+  "stage",
+  "all",
+  "track",
+] }
+"git add patch" = { cmd = "git add --patch", abbr = "gap", keywords = [
+  "add",
+  "stage",
+  "patch",
+  "hunk",
+] }
+"git add all patch" = { cmd = "git add --all --patch", abbr = "gaap", keywords = [
+  "add",
+  "stage",
+  "all",
+  "patch",
+] }
+"git commit" = { cmd = "git commit -m \"{{message}}\"", abbr = "gc", keywords = [
+  "commit",
+  "message",
+  "save",
+] }
+"git commit amend" = { cmd = "git commit --amend", abbr = "gca", keywords = [
+  "commit",
+  "amend",
+  "fix",
+  "edit",
+] }
+"git commit amend no-edit" = { cmd = "git commit --amend --no-edit", abbr = "gcane", keywords = [
+  "commit",
+  "amend",
+  "no-edit",
+  "quick",
+] }
+# no abbreviation: gd is the working-tree diff further down
+diff = { cmd = "git diff {{commit}} {{commit}}", abbr = [], keywords = [
+  "compare",
+  "changes",
+] }
+"git diff working tree" = { cmd = "git diff", abbr = "gd", keywords = [
+  "diff",
+  "changes",
+  "working",
+  "unstaged",
+] }
+"git diff workingtree (fuzzy)" = { cmd = "git-fuzzy-diff", keywords = [
+  "diff",
+  "compare",
+  "fuzzy",
+  "git",
+] }
+"git diff compare (fuzzy)" = { cmd = "git-fuzzy-diff {{commit}} {{commit}}", keywords = [
+  "diff",
+  "compare",
+  "fuzzy",
+  "git",
+] }
+show = { cmd = "git show {{commit}}", keywords = [
+  "inspect",
+  "commit",
+  "details",
+  "changes",
+] }
 log = { cmd = "pretty_git_log {{branch}}", keywords = ["history", "commits"] }
-log_number = { cmd = "pretty_git_log {{branch}} -n ", keywords = ["history", "limit"] }
-diff = { cmd = "git diff {{commit}} {{commit}}", keywords = ["compare", "changes"] }
-show = { cmd = "git show {{commit}}", keywords = ["inspect", "commit", "details", "changes"]}
-"git status (pretty)" = { cmd = "pretty_git_status", keywords = ["status", "git", "state"] }
-"git explorer (fuzzy)" = { cmd = "git-fuzzy-branch-list", keywords = ["branch", "explorer", "fuzzy", "git"] }
-"git log (fuzzy)" = { cmd = "git-fuzzy-log", keywords = ["log", "history", "fuzzy", "git"] }
-"git log (pretty)" = { cmd = "pretty_git_log", keywords = ["log", "pretty", "git"] }
-"git diff workingtree (fuzzy)" = { cmd = "git-fuzzy-diff", keywords = ["diff", "compare", "fuzzy", "git"] }
-"git diff compare (fuzzy)" = { cmd = "git-fuzzy-diff {{commit}} {{commit}}", keywords = ["diff", "compare", "fuzzy", "git"] }
-"git checkout (fuzzy)" = { cmd = "git_fuzzy_checkout_branch", keywords = ["checkout", "switch", "fuzzy", "git"] }
-
+log_number = { cmd = "pretty_git_log {{branch}} -n ", keywords = [
+  "history",
+  "limit",
+] }
+"git log (pretty)" = { cmd = "pretty_git_log", keywords = [
+  "log",
+  "pretty",
+  "git",
+] }
+"git log (fuzzy)" = { cmd = "git-fuzzy-log", keywords = [
+  "log",
+  "history",
+  "fuzzy",
+  "git",
+] }
+"git explorer (fuzzy)" = { cmd = "git-fuzzy-branch-list", keywords = [
+  "branch",
+  "explorer",
+  "fuzzy",
+  "git",
+] }
+lazygit = { cmd = "lazygit", abbr = "lg", keywords = ["lazygit", "tui", "git", "ui"] }
 [rebase]
-"rebase onto local branch" = { cmd = "git rebase -i {{rebase_branch}}", keywords = ["interactive", "squash", "edit", "fixup"] }
-"rebase after fetch" = { cmd = "git fetch origin {{remote_branch}} && git rebase origin/{{remote_branch}}", keywords = ["update", "sync", "remote", "upstream"] }
-"pull with interactive rebase" = { cmd = "git pull --rebase=interactive", keywords = ["update", "pull", "sync"] }
-"continue" = { cmd = "git rebase --continue", keywords = ["next", "resolved", "finish"] }
+"rebase onto local branch" = { cmd = "git rebase -i {{rebase_branch}}", keywords = [
+  "interactive",
+  "squash",
+  "edit",
+  "fixup",
+] }
+"rebase after fetch" = { cmd = "git fetch origin {{remote_branch}} && git rebase origin/{{remote_branch}}", keywords = [
+  "update",
+  "sync",
+  "remote",
+  "upstream",
+] }
+"pull with interactive rebase" = { cmd = "git pull --rebase=interactive", keywords = [
+  "update",
+  "pull",
+  "sync",
+] }
+"continue" = { cmd = "git rebase --continue", keywords = [
+  "next",
+  "resolved",
+  "finish",
+] }
 "abort" = { cmd = "git rebase --abort", keywords = ["stop", "cancel", "undo"] }
 "skip" = { cmd = "git rebase --skip", keywords = ["ignore", "skip"] }

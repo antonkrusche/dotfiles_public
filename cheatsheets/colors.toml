@@ -1,6 +1,40 @@
+# Colours for the fuzzy cheat sheet (fuzzy-cheat-sheet, bound to Ctrl+a).
+#
+# Every value is a raw SGR parameter inserted verbatim into "\e[<value>m", so
+# the terminal decides how it actually looks:
+#
+#   30-37 / 90-97   the 16 colours of the terminal theme      (adaptive)
+#   38;5;N          xterm 256-colour                          (fixed)
+#   38;2;R;G;B      24-bit true colour                       (fixed)
+#
+# Prefer the 16 theme colours: the sheet then follows whatever colour scheme
+# the terminal runs instead of hard-coding a palette. This repo uses
+# "Gruvbox Material (Gogh)" (see .wezterm.lua), whose palette is
+#
+#   black #3c3836  red #ea6962      green #a9b665  yellow #d8a657
+#   blue  #7daea3  magenta #d3869b  cyan  #89b482  white  #d4be98
+#   orange #e78a4e (material accent, not one of the 16 ANSI colours, so it
+#                   cannot be used if the colour must stay adaptive)
+#   background #282828   (normal and bright are identical in this scheme)
+
+[meta]
+# Accent for the "→abbr" badge, in bright yellow (93) — the colour the docs
+# section used to have. Adaptive like the sections; Gruvbox Material renders
+# it as #d8a657. The docs section moved to magenta (35) so the two stay
+# distinct.
+badge = "93"
+# Separator before the keyword list. "2" is the SGR *faint* attribute: it
+# dims the default foreground and therefore follows the theme. Do NOT use the
+# 256-colour grey "90" here: on Gruvbox Material bright-black is #3c3836,
+# which is nearly invisible on the #282828 background.
+dim = "2"
+
 [sections]
-git = "96"      # Bright Cyan
-docs = "93"     # Bright Yellow
-workflow = "92" # Bright Green
-# Format: section_name = "ANSI_color_code"
-# Brights: 91: Red, 92: Green, 93: Yellow, 94: Blue, 95: Magenta, 96: Cyan
+# Fallback colour for any section not listed below.
+default = "36"
+git = "96"      # bright cyan   #89b482
+docs = "35"     # magenta       #d3869b
+files = "94"    # bright blue   #7daea3
+workflow = "92" # bright green  #a9b665
+# Note: in Gruvbox Material, cyan (96) and green (92) are close. If git should
+# stand out more from workflow, use "31" (red/orange) here.

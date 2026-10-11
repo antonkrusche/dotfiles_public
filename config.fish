@@ -73,13 +73,16 @@ if status is-interactive
     #Git
     abbr gs "git status"
     abbr gcl "git clone"
+    abbr gai "git add --interactive"
     abbr gaa "git add --all"
     abbr gap "git add --patch"
     abbr gaap "git add --all --patch"
     abbr --set-cursor gc "git commit -m \"%\""
     abbr gca "git commit --amend"
     abbr gcane "git commit --amend --no-edit"
-    abbr gcb --function git_fuzzy_checkout_branch --position command
+    abbr --set-cursor gd "git diff %"
+    # Use together with: git config --global --type bool push.autoSetupRemote true
+    abbr --set-cursor gsc "git switch --create %"
 
     # My own git utilities
     abbr gfl git-fuzzy-log

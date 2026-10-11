@@ -12,9 +12,18 @@ function fuzzy-cheat-sheet
         return 1
     end
 
+    # fzf UI colours for both pickers. Only the terminal's 16 ANSI colours (and
+    # -1 for the default fg/bg) are used, so the popup follows the active
+    # scheme (Gruvbox Material most of the time) instead of fzf's built-in
+    # 256-colour default. bg+ is bright-black, which Gruvbox renders as
+    # #3c3836. Move this into $FZF_DEFAULT_OPTS to theme all fzf pickers.
+    set -l fzf_colors 'fg:-1,bg:-1,hl:bright-yellow,fg+:bright-white,bg+:bright-black,hl+:bright-yellow:bold,info:cyan,prompt:green,pointer:bright-red,marker:green,spinner:yellow,header:cyan,border:bright-black,label:yellow,query:-1,disabled:bright-black'
+
     # Parse all cheat sheet TOML files: CMD: lines (fzf entries) and PROV:
-    # lines (providers for {{placeholder}} parameters).
-    set -l python_output (python3 "$parse_py" "$cheat_dir")
+    # lines (providers for {{placeholder}} parameters). The abbreviations of
+    # the current shell are handed over as well, so the parser can annotate
+    # entries whose command has an abbreviation with a →badge.
+    set -l python_output (python3 "$parse_py" "$cheat_dir" (abbr --show --color=never | psub))
 
     if test -z "$python_output"
         echo "No cheat commands found."
@@ -25,15 +34,16 @@ function fuzzy-cheat-sheet
     set -l providers (printf "%s\n" $python_output | grep '^PROV:')
     set -l commands (printf "%s\n" $python_output | grep '^CMD:')
 
-    # 1. Select the cheat command
-    set -l selection (printf "%s\n" $commands | sed 's/^CMD://' | fzf --ansi --reverse --height=40% --prompt="Cheat Sheet > ")
+    # 1. Select the cheat command. Each entry is <display>\t<cmd>\t<abbrs>;
+    # fzf shows/searches only the display field but returns the whole line.
+    set -l selection (printf "%s\n" $commands | sed 's/^CMD://' | fzf --ansi --color="$fzf_colors" --delimiter='\t' --with-nth=1 --reverse --height=40% --prompt="Cheat Sheet > " --header='→ = existing abbreviation of this command')
     if test -z "$selection"
         return
     end
 
-    # Extract the part before the metadata pipe, then the command after the first ': '
-    set -l clean_line (printf '%s\n' "$selection" | cut -d'|' -f1)
-    set -l cmd (printf '%s\n' "$clean_line" | awk -F': ' '{print $2}')
+    # field 1 = display, field 2 = raw command, field 3 = matching abbrs
+    set -l fields (string split \t -- $selection)
+    set -l cmd $fields[2]
 
     # 2. Check if the command has parameter placeholders {{...}}
     # Use a while loop to resolve ALL placeholders one by one
@@ -63,7 +73,7 @@ function fuzzy-cheat-sheet
             set -l list (eval $list_cmd)
 
             # Select the item from the list
-            set -l selection (string join \n $list | fzf --ansi --reverse --height=40% --prompt="$param_name > ")
+            set -l selection (string join \n $list | fzf --ansi --color="$fzf_colors" --reverse --height=40% --prompt="$param_name > ")
 
             if test -z "$selection"
                 return
