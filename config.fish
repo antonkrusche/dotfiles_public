@@ -1,5 +1,11 @@
 set fish_greeting
 
+if test -f ~/.config/dotfiles/local.fish
+    source ~/.config/dotfiles/local.fish
+end
+
+fish_add_path --global $HOME/.local/bin
+
 if status is-interactive
     # Commands to run in interactive sessions can go here
     fish_vi_key_bindings

@@ -30,6 +30,9 @@ $cmd_duration\
 
 add_newline = true
 
+scan_timeout = 1000
+command_timeout = 2000
+
 palette = 'gruvbox_dark'
 
 [palettes.gruvbox_dark]

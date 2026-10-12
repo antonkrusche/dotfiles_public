@@ -1,0 +1,20 @@
+# tuicr configuration
+#
+# Deployed at ~/.config/tuicr/config.toml (Linux/macOS); Windows uses
+# %APPDATA%\tuicr\config.toml. tuicr resolves its own directory, so this
+# lives in its own subfolder like herdr/ does.
+# Full reference: https://github.com/agavra/tuicr/blob/main/docs/CONFIG.md
+
+# Git backend: "libgit2" (default) or "cli".
+#
+# The default, libgit2, reads the repository in-process. It never consults
+# PATH, so it cannot use the WSL git shim (~/dotfiles/bin/wsl/git): on a repo
+# under /mnt/<drive> every stat crosses the WSL VM boundary and status/diff
+# become slow - exactly the problem the shim exists to avoid.
+#
+# "cli" shells out to `git` by name instead, so the shim resolves it and
+# routes /mnt work trees to git.exe. Harmless on native Linux (just uses the
+# system git). Requires ~/dotfiles/bin/wsl on PATH, which is WSL-only.
+#
+# There is no environment variable or CLI flag for this - config file only.
+backend = "cli"
