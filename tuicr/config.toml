@@ -17,4 +17,9 @@
 # system git). Requires ~/dotfiles/bin/wsl on PATH, which is WSL-only.
 #
 # There is no environment variable or CLI flag for this - config file only.
+#
+# Note: with the WSL shim, a /mnt work tree is handled by tuicr.exe, which reads
+# NTFS natively and uses its own %APPDATA% config; this Linux config then only
+# matters when you force the Linux build (WSL_TUICR_IMPL=linux) or run on a
+# native Linux checkout. Keeping backend = "cli" is the safe shared default.
 backend = "cli"

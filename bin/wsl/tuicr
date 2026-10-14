@@ -1,0 +1,153 @@
+#!/bin/sh
+# Generic WSL-interop shim (path-aware).
+#
+# Symlink the tool names that should switch to their Windows build into this
+# directory (e.g. `ln -s wsl-exec rg`). The shim picks the OS side from the
+# files it is about to touch:
+#
+#   * the current working directory (physical path, via `pwd -P`, so symlinks
+#     into /mnt count), or
+#   * if the cwd is not on a Windows drive, the first /mnt/<letter> path
+#     argument (bare or as an `--opt=/mnt/...` value).
+#
+# When that side is Windows, the tool's Windows .exe runs instead of the Linux
+# binary. It reaches NTFS natively instead of crossing the WSL virtual machine
+# boundary, which is orders of magnitude faster for file-system heavy tools, and
+# for tools like nvim/tuicr/copilot it is also a *correctness* requirement: a
+# language server, review store or agent process must live in the same OS world
+# as the files it examines.
+#
+# These are real executables, not fish functions, on purpose: fish functions
+# only exist inside the fish process, so callers such as starship, neovim
+# plugins, lazygit and plain shell scripts silently bypassed the old wrappers.
+# A directory on PATH is inherited by every child process, so one decision
+# point covers the whole toolchain.
+#
+# WSL runs Windows executables but does NOT translate their arguments ("we
+# don't do any manipulation of the command line"), so every /mnt/... argument is
+# turned into C:\... with wslpath first. The working directory *is* translated
+# by WSL, so when a /mnt file is opened from a Linux cwd we cd into its
+# directory first, otherwise the Windows process would start in
+# C:\WINDOWS\system32.
+#
+# Only swap tools that tolerate this. Keep these on the Linux side:
+#   zoxide - the Windows build keeps a separate z-database, fragmenting ours
+#   fzf    - it launches previews/commands itself, and those must stay in the
+#            Linux (fish) world
+#   eza    - listing one directory is not the bottleneck
+#   git    - has its own shim (bin/wsl/git): rev-parse must stay on Linux so
+#            Linux-side consumers keep getting /mnt/... paths
+#
+# Per-tool escape hatch: WSL_<TOOL>_IMPL=linux (e.g. WSL_NVIM_IMPL=linux) forces
+# the Linux build even on /mnt. Useful when debugging a shimmed tool itself.
+#
+# Environment variable WSL_FAKE_CWD lets the shims be exercised on a plain
+# Linux machine with a fake <tool>.exe and `wslpath` first on PATH; never set
+# it normally.
+set -eu
+
+# Determine this script's directory. When found via PATH, $0 already holds the
+# resolved path; when invoked by a name with no slash, resolve it first.
+self=$0
+case $self in
+*/*) ;;
+*) self=$(command -v -- "$self") || exit 127 ;;
+esac
+shimdir=$(dirname -- "$(readlink -f -- "$self")")
+tool=$(basename -- "$0")
+
+# Run the genuine Linux binary, found on a PATH without this shim directory so
+# the lookup can never recurse into itself.
+real_tool() {
+  PATH=$(printf '%s\n' "$PATH" | tr ':' '\n' | awk -v d="$shimdir" '$0 != d' | paste -sd ':')
+  exec "$tool" "$@"
+}
+
+# Per-tool escape hatch, e.g. nvim -> WSL_NVIM_IMPL. The name is sanitized so a
+# strange symlink name cannot smuggle shell syntax into the lookup.
+impl_var="WSL_$(printf '%s' "$tool" | tr '[:lower:]' '[:upper:]' | tr -c 'A-Z0-9' '_')_IMPL"
+if [ "$(printenv "$impl_var" 2>/dev/null || true)" = linux ]; then
+  real_tool "$@"
+fi
+
+# Convert a Linux-style path to its Windows form; unchanged when the argument
+# is not on a Windows drive. A failed wslpath leaves the original in place, so
+# a prompt or pattern that merely looks like a path is not mangled.
+to_win() {
+  case $1 in
+  /mnt/[A-Za-z] | /mnt/[A-Za-z]/*)
+    wslpath -w "$1" 2>/dev/null || printf '%s\n' "$1"
+    ;;
+  *) printf '%s\n' "$1" ;;
+  esac
+}
+
+cwd=${WSL_FAKE_CWD:-$(pwd -P)}
+
+# Pick the work tree this invocation belongs to: the process cwd, or, if the
+# cwd is not on a Windows drive, the first /mnt/... argument (bare or the value
+# of an `--opt=/mnt/...` option; opening a Windows file from a Linux directory
+# is common: `nvim /mnt/c/repo/foo.cs`, `tuicr --repo /mnt/c/repo`).
+target=$cwd
+case $cwd in
+/mnt/[A-Za-z] | /mnt/[A-Za-z]/*) ;;
+*)
+  for arg in "$@"; do
+    candidate=$arg
+    case $arg in
+    --*=*) candidate=${arg#*=} ;;
+    esac
+    case $candidate in
+    /mnt/[A-Za-z] | /mnt/[A-Za-z]/*)
+      target=$candidate
+      break
+      ;;
+    esac
+  done
+  ;;
+esac
+
+case $target in
+/mnt/[A-Za-z] | /mnt/[A-Za-z]/*)
+  if command -v -- "$tool.exe" >/dev/null 2>&1; then
+    # If the cwd itself is not translatable, move into the target's
+    # directory so the Windows process inherits a usable cwd.
+    case $cwd in
+    /mnt/[A-Za-z] | /mnt/[A-Za-z]/*) ;;
+    *)
+      if [ -d "$target" ]; then
+        cd "$target" 2>/dev/null || true
+      else
+        cd "$(dirname -- "$target")" 2>/dev/null || true
+      fi
+      ;;
+    esac
+
+    # Translate /mnt/... arguments in place, both bare paths and
+    # `--opt=/mnt/...` values. Arguments are rotated to the front one at
+    # a time, rewritten if needed, and pushed back on the end so original
+    # order and quoting survive unchanged.
+    n=$#
+    i=1
+    while [ $i -le $n ]; do
+      head=$1
+      shift
+      case $head in
+      --*=*)
+        key=${head%%=*}
+        val=${head#*=}
+        head="$key=$(to_win "$val")"
+        ;;
+      *)
+        head=$(to_win "$head")
+        ;;
+      esac
+      set -- "$@" "$head"
+      i=$((i + 1))
+    done
+    exec "$tool.exe" "$@"
+  fi
+  ;;
+esac
+
+real_tool "$@"

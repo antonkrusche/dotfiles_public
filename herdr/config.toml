@@ -6,6 +6,9 @@ default_shell = "fish"
 [theme]
 name = "gruvbox"
 
+[ui]
+host_cursor = "native"
+
 [worktrees]
 directory = "~/.herdr/worktrees"
 

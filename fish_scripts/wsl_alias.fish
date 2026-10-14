@@ -14,24 +14,23 @@
 # every child process, so one decision point covers the whole toolchain.
 #
 # The shims live in <repo>/bin/wsl:
-#   wsl-exec   generic dispatcher, symlinked by the simple tools (rg, fd,
-#              lazygit): runs `<tool>.exe` on /mnt/<letter>, the Linux binary
-#              everywhere else
+#   wsl-exec   generic, path-aware dispatcher; rg, fd, lazygit, nvim, tuicr and
+#              copilot are symlinks to it. Runs `<tool>.exe` when the cwd (or a
+#              /mnt/... argument) is on a Windows drive, translating those
+#              arguments with wslpath, and the Linux binary everywhere else.
+#              `WSL_<TOOL>_IMPL=linux` forces the Linux build.
 #   git        dedicated shim: routes expensive work-tree scans to git.exe and
 #              path-emitting queries (rev-parse) to Linux git, translates
 #              -C/--git-dir/--work-tree arguments, see its header
-#   nvim       dedicated shim: launches nvim.exe on /mnt/<letter> (translating
-#              /mnt/... file arguments) so the C# language servers run on the
-#              side the Windows project was built for, see its header
 #
 # Tool policy (keep the Linux build!): fzf (it launches the previews/commands,
 # which must stay in the Linux/fish world), zoxide (the Windows build keeps a
 # separate database), eza (listing one directory is not the bottleneck).
 #
-# nvim is *not* in that list: file I/O speed is irrelevant, but a language
-# server is not stateless I/O glue. Linux Roslyn cannot resolve a Windows-built
-# project (C:\ HintPaths, Windows SDKs, Windows NuGet/MSBuild), so on /mnt the
-# editor itself runs on Windows. See docs/wsl-interop.txt.
+# nvim, tuicr and copilot are *not* in that list: their swap is about
+# correctness, not only I/O speed. A language server (Roslyn), a review or agent
+# process and its per-OS state directory must live in the same OS world as the
+# files they work on. See docs/wsl-interop.txt.
 #
 # Only this file is sourced from config.fish, and only on WSL.
 

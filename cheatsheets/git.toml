@@ -4,7 +4,7 @@
 branch = "git branch -a --format='%(refname:short)' | cat"
 commit = "pretty_git_log -n 200 | grep -oE '[a-f0-9]{7,40}' | head -n1"
 rebase_branch = "git branch --format='%(refname:short)' | cat"
-remote_branch = "git branch -r --format='%(refname:short)' | sed 's/^origin\\///' | cat"
+remote_branch = "git branch -r --format='%(refname:short)' | grep '^origin/' | sed 's#^origin/##' | cat"
 
 [git]
 "git status" = { cmd = "git status", abbr = "gs", keywords = [
@@ -75,7 +75,8 @@ checkout = { cmd = "git checkout {{branch}}", keywords = [
   "quick",
 ] }
 # no abbreviation: gd is the working-tree diff further down
-diff = { cmd = "git diff {{commit}} {{commit}}", abbr = [], keywords = [
+diff = { cmd = "git diff {{commit}} {{commit}}", abbr = [
+], keywords = [
   "compare",
   "changes",
 ] }
@@ -125,7 +126,12 @@ log_number = { cmd = "pretty_git_log {{branch}} -n ", keywords = [
   "fuzzy",
   "git",
 ] }
-lazygit = { cmd = "lazygit", abbr = "lg", keywords = ["lazygit", "tui", "git", "ui"] }
+lazygit = { cmd = "lazygit", abbr = "lg", keywords = [
+  "lazygit",
+  "tui",
+  "git",
+  "ui",
+] }
 [rebase]
 "rebase onto local branch" = { cmd = "git rebase -i {{rebase_branch}}", keywords = [
   "interactive",
@@ -133,16 +139,21 @@ lazygit = { cmd = "lazygit", abbr = "lg", keywords = ["lazygit", "tui", "git", "
   "edit",
   "fixup",
 ] }
-"rebase after fetch" = { cmd = "git fetch origin {{remote_branch}} && git rebase origin/{{remote_branch}}", keywords = [
+# Rebase the current branch onto a *different* remote branch (e.g. a feature
+# branch onto origin/main). This is not a pull: the target is picked explicitly.
+"rebase onto remote branch" = { cmd = "git fetch origin {{remote_branch}} && git rebase -i origin/{{remote_branch}}", keywords = [
   "update",
   "sync",
   "remote",
-  "upstream",
+  "rebase",
+  "interactive",
 ] }
 "pull with interactive rebase" = { cmd = "git pull --rebase=interactive", keywords = [
   "update",
   "pull",
   "sync",
+  "rebase",
+  "interactive",
 ] }
 "continue" = { cmd = "git rebase --continue", keywords = [
   "next",

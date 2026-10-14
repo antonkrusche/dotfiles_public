@@ -89,6 +89,10 @@ if status is-interactive
     abbr --set-cursor gd "git diff %"
     # Use together with: git config --global --type bool push.autoSetupRemote true
     abbr --set-cursor gsc "git switch --create %"
+    # Use together with: git config --global fetch.prune true
+    abbr gf "git fetch"
+    # Use together with: git config --global pull.ff only
+    abbr gp "git pull"
 
     # My own git utilities
     abbr gfl git-fuzzy-log
