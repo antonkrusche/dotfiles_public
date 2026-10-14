@@ -2,6 +2,7 @@
 # Format: "list_command | extract_command"
 # Use 'cat' as extract_command if you want the whole line
 branch = "git branch -a --format='%(refname:short)' | cat"
+local_branch = "git branch --format='%(refname:short)' | cat"
 commit = "pretty_git_log -n 200 | grep -oE '[a-f0-9]{7,40}' | head -n1"
 rebase_branch = "git branch --format='%(refname:short)' | cat"
 remote_branch = "git branch -r --format='%(refname:short)' | grep '^origin/' | sed 's#^origin/##' | cat"
@@ -23,7 +24,7 @@ clone = { cmd = "git clone", abbr = "gcl", keywords = [
   "remote",
   "repository",
 ] }
-checkout = { cmd = "git checkout {{branch}}", keywords = [
+checkout = { cmd = "git switch {{local_branch}}", keywords = [
   "switch",
   "branch",
   "move",
@@ -33,6 +34,27 @@ checkout = { cmd = "git checkout {{branch}}", keywords = [
   "branch",
   "switch",
   "new",
+] }
+# Create ✓  Track ✓
+"checkout remote (new local, tracking)" = { cmd = "set -l b {{remote_branch}}; git fetch --prune origin $b && git switch --create $b --track origin/$b", abbr = "gsc", keywords = [
+  "checkout",
+  "switch",
+  "remote",
+  "track",
+  "create",
+  "review",
+  "branch",
+] }
+# Create ✓  Track ✓  Override ✓  — safe to run repeatedly: creates or resets
+"checkout remote (override existing local)" = { cmd = "set -l b {{remote_branch}}; git fetch --prune origin $b && git switch --force-create $b --track origin/$b", abbr = "gsc", keywords = [
+  "checkout",
+  "switch",
+  "remote",
+  "override",
+  "reset",
+  "force",
+  "review",
+  "branch",
 ] }
 "git add interactive" = { cmd = "git add --interactive", abbr = "gai", keywords = [
   "add",
